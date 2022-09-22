@@ -1,0 +1,46 @@
+sudo yum update -y
+
+sudo amazon-linux-extras install docker
+
+sudo service docker start
+
+sudo systemctl enable docker
+
+sudo usermod -a -G docker ec2-user
+
+docker info
+
+Create a Docker image
+touch Dockerfile
+FROM ubuntu:18.04
+
+# Install dependencies
+RUN apt-get update && \
+ apt-get -y install apache2
+
+# Install apache and write hello world message
+RUN echo 'Hello World!' > /var/www/html/index.html
+
+# Configure apache
+RUN echo '. /etc/apache2/envvars' > /root/run_apache.sh && \
+ echo 'mkdir -p /var/run/apache2' >> /root/run_apache.sh && \
+ echo 'mkdir -p /var/lock/apache2' >> /root/run_apache.sh && \ 
+ echo '/usr/sbin/apache2 -D FOREGROUND' >> /root/run_apache.sh && \ 
+ chmod 755 /root/run_apache.sh
+
+EXPOSE 80
+
+CMD /root/run_apache.sh
+
+docker build -t hello-world .
+docker images --filter reference=hello-world
+docker run -t -i -p 80:80 hello-world
+docker-machine ip machine-name
+Push your image to Amazon Elastic Container Registry
+aws ecr create-repository --repository-name hello-repository --region region
+docker tag hello-world aws_account_id.dkr.ecr.region.amazonaws.com/hello-repository
+docker login -u AWS -p $(aws ecr get-login-password --region REGION) aws_account_id.dkr.ecr.REGION.amazonaws.com
+docker push aws_account_id.dkr.ecr.region.amazonaws.com/hello-repository
+For Clean up
+
+aws ecr delete-repository --repository-name hello-repository --region region --force
